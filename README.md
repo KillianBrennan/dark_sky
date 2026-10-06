@@ -13,7 +13,7 @@ specific hill.
 2. Pick one of the `outputs/layer_*.tif` files (Cloud-Optimised GeoTIFF, RGBA, EPSG:2056).
    The import runs in your browser; the file is not uploaded anywhere.
 3. Set the layer opacity in the layer list (≈60–70 % over the topographic basemap works well).
-4. Optional: import `outputs/isochrones_bern.kml` to overlay the 15/30/45/60-min night-time
+4. Optional: import `outputs/isochrones_bern.kml` to overlay the 30/45/60-min night-time
    drive-time contours from Bern.
 
 Colour keys are in `outputs/legend_*.png`. All brightness layers use one blue ramp:
