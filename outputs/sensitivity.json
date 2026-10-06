@@ -1,0 +1,24 @@
+{
+  "F030": {
+    "spearman_airglow": 0.9997384392670269,
+    "top5pct_overlap": 0.9733399105351077,
+    "spearman_zenith": 0.9994684228747793,
+    "median_zenith_shift_mag": -0.4780120849609375
+  },
+  "leak005": {
+    "spearman_airglow": 0.9997183185189428,
+    "top5pct_overlap": 0.9516687780979181,
+    "spearman_zenith": 1.0,
+    "median_zenith_shift_mag": 0.0
+  },
+  "leak035": {
+    "spearman_airglow": 0.9992524335057301,
+    "top5pct_overlap": 0.9374754756325886,
+    "spearman_zenith": 1.0,
+    "median_zenith_shift_mag": 0.0
+  },
+  "LED_V_range": {
+    "x1.2": 0.13555526733398438,
+    "x2.0": -0.19398117065429688
+  }
+}
