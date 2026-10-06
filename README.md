@@ -77,6 +77,34 @@ terrain toward the Mittelland, open toward S/E" optimum the brief asked about. T
 differences between these areas (≈0.1–0.2 mag) are smaller than the model's absolute
 uncertainty, so treat them as a shortlist for ground truth, not a ranking.
 
+## Shareable map links
+
+Each link opens map.geo.admin.ch with the layer streamed from this repository (65 % opacity)
+and the drive-time contours on top. Toggle or fade layers in the "Maps displayed" panel.
+
+**[All layers in one map](https://map.geo.admin.ch/#/map?lang=en&center=2601000,1200000&z=2&bgLayer=ch.swisstopo.pixelkarte-grau&layers=COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_1_airglow_SE.tif,,0.65;COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_2_zenith.tif,f,0.65;COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_3_allsky30.tif,f,0.65;COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_4_meteors.tif,f,0.65;COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_5_above_inversion.tif,f,0.65;COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_ref_lorenz2025_zenith.tif,f,0.65;KML%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/isochrones_bern.kml)** (airglow shown, the others loaded but hidden)
+
+| Layer | Link |
+|---|---|
+| OH airglow E–S (target 1) | [open](https://map.geo.admin.ch/#/map?lang=en&center=2601000,1200000&z=2&bgLayer=ch.swisstopo.pixelkarte-grau&layers=COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_1_airglow_SE.tif,,0.65;KML%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/isochrones_bern.kml) |
+| Zenith (targets 2/3) | [open](https://map.geo.admin.ch/#/map?lang=en&center=2601000,1200000&z=2&bgLayer=ch.swisstopo.pixelkarte-grau&layers=COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_2_zenith.tif,,0.65;KML%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/isochrones_bern.kml) |
+| Sky above 30° (target 3) | [open](https://map.geo.admin.ch/#/map?lang=en&center=2601000,1200000&z=2&bgLayer=ch.swisstopo.pixelkarte-grau&layers=COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_3_allsky30.tif,,0.65;KML%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/isochrones_bern.kml) |
+| Meteors (target 4) | [open](https://map.geo.admin.ch/#/map?lang=en&center=2601000,1200000&z=2&bgLayer=ch.swisstopo.pixelkarte-grau&layers=COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_4_meteors.tif,,0.65;KML%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/isochrones_bern.kml) |
+| Above autumn/winter stratus | [open](https://map.geo.admin.ch/#/map?lang=en&center=2601000,1200000&z=2&bgLayer=ch.swisstopo.pixelkarte-grau&layers=COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_5_above_inversion.tif,,0.65;KML%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/isochrones_bern.kml) |
+| Lorenz 2025 reference | [open](https://map.geo.admin.ch/#/map?lang=en&center=2601000,1200000&z=2&bgLayer=ch.swisstopo.pixelkarte-grau&layers=COG%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/layer_ref_lorenz2025_zenith.tif,,0.65;KML%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/isochrones_bern.kml) |
+
+## Data sources and credits
+
+- Night lights: VIIRS DNB VNL v2.2 annual 2025, Earth Observation Group, Payne Institute,
+  Colorado School of Mines (CC BY 4.0). Elvidge et al. (2021), *Remote Sensing* 13, 922.
+- Sky-brightness reference/calibration: World Atlas of the Artificial Night Sky Brightness,
+  2025 edition, D. J. Lorenz (djlorenz.github.io/astronomy/lp), after Cinzano/Falchi.
+- Terrain: Copernicus DEM GLO-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH
+  2014-2018, provided under COPERNICUS by the European Union and ESA.
+- Water mask: ESA WorldCover 10 m 2021 v200 (CC BY 4.0).
+- Drive times: Valhalla (FOSSGIS public instance) on OpenStreetMap data © OpenStreetMap
+  contributors (ODbL).
+
 ## Method
 
 1. **Domain.** A 140 × 140 km LV95 square centred on Bern. Night-time drive-time isochrones
