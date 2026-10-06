@@ -1,0 +1,26 @@
+{
+  "viirs_only": {
+    "delta_mag_quantiles_shown": [
+      -0.025,
+      0.002,
+      0.049
+    ],
+    "spearman_shown": 0.9993916997849744
+  },
+  "fill0": {
+    "delta_mag_quantiles_shown": [
+      0.001,
+      0.005,
+      0.045
+    ],
+    "spearman_shown": 0.9997026920931499
+  },
+  "fill2": {
+    "delta_mag_quantiles_shown": [
+      -0.022,
+      -0.002,
+      -0.0
+    ],
+    "spearman_shown": 0.9999315569099724
+  }
+}

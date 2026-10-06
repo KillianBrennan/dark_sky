@@ -7,10 +7,12 @@ Steps (default: all, in order):
   calibrate  fit scale + AOD against the Lorenz atlas
   model      light-dome model (central + sensitivity runs)
   layers     fields GeoTIFF, RGBA COG layers, legends, sensitivity summary
+  allsky     all-sky (>30 deg) layer with local sources + visibility/building masks
+             (overwrites layer_3 from `layers`; downloads BFS grids and OSM extracts)
 """
 import sys
 
-STEPS = ["fetch", "viirs", "terrain", "calibrate", "model", "layers"]
+STEPS = ["fetch", "viirs", "terrain", "calibrate", "model", "layers", "allsky"]
 
 
 def main(steps):
@@ -40,6 +42,10 @@ def main(steps):
         elif s == "layers":
             from . import build_layers
             build_layers.run()
+        elif s == "allsky":
+            from . import run_allsky
+            run_allsky.run(recalibrate=True)
+            run_allsky.sensitivity()
 
 
 if __name__ == "__main__":

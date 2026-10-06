@@ -23,7 +23,7 @@ Colour keys are in `outputs/legend_*.png`. All brightness layers use one blue ra
 |---|---|---|
 | `layer_1_airglow_SE.tif` | 1. OH airglow gravity waves | Artificial NIR (Gen 3, ~850 nm) skyglow in the darkest 30°-wide window at 20–30° elevation within azimuth 45–225° (E through S), in magnitudes relative to the best 1 % of the square. Grey hatching marks pixels where terrain blocks every E–S window. |
 | `layer_2_zenith.tif` | 2. Hα nebulae, 3. deep sky | Zenith sky brightness, V band, LED-corrected (mag/arcsec²). |
-| `layer_3_allsky30.tif` | 3. Milky Way / binocular | Mean V sky brightness above 30° elevation (mag/arcsec²). |
+| `layer_3_allsky30.tif` | **Main summary layer**; 3. Milky Way / binocular | Mean V sky brightness over the whole sky above 30° (mag/arcsec²), **including local sources** (settlements, jobs, buildings, larger roads at 100 m). **Shown only where terrain stays below 10° over ≥ 75 % of the horizon and the point is ≥ 200 m from any building**; everything else is transparent. See [All-sky layer](#all-sky-layer-with-local-sources). |
 | `layer_4_meteors.tif` | 4. Meteors | Relative visual meteor rate: open-sky fraction above 15° × r^(NELM − NELM_pristine), r = 2.5. |
 | `layer_5_above_inversion.tif` | Autumn/winter bonus | Probability that the site lies above the Oct–Feb Mittelland stratus top (orange; transparent = below). |
 | `layer_ref_lorenz2025_zenith.tif` | Reference | Lorenz 2025 atlas zenith brightness, an independent model with no terrain and no LED correction. |
@@ -105,6 +105,74 @@ and the drive-time contours on top. Toggle or fade layers in the "Maps displayed
 - Drive times: Valhalla (FOSSGIS public instance) on OpenStreetMap data © OpenStreetMap
   contributors (ODbL).
 
+## All-sky layer with local sources
+
+`layer_3_allsky30.tif` is built by `darksky/run_allsky.py`, separately from the other layers
+(which still use VIIRS alone).
+
+**Local light sources.** VIIRS has a ~0.5–1 km footprint and drops pixels below
+~0.45 nW cm⁻² sr⁻¹. Inside Switzerland, BFS hectare statistics (residents STATPOP 2024, jobs
+STATENT 2023, buildings 2024) and OSM roads say where light can be at 100 m:
+
+- *Proxy.* Each hectare gets c·[residents, jobs, buildings, m of `lit=yes` road, m of
+  untagged motorway/trunk/primary/secondary road]. The weights c ≥ 0 come from a
+  non-negative least-squares fit of VIIRS over 5 km cells in Switzerland (log r = 0.94).
+  Per unit, relative to one resident: job 0.99, building 3.3, lit road 0.05 per m,
+  untagged major road 0.47 per m. Share of the total proxy: residents 38 %, jobs 19 %,
+  buildings 25 %, untagged major roads 17 %, lit roads 1 %. The lit-road term is small
+  because it is collinear with towns.
+- *Downscaling.* The light of each Swiss VIIRS pixel is redistributed onto hectares within
+  600 m (proxy × Gaussian, σ = 400 m), conserving the VIIRS total. 2.5 % of Swiss VIIRS
+  light has no proxy nearby (roads through empty land, industry, ski lifts) and stays put.
+- *Fill.* 54 k inhabited hectares with no lit VIIRS pixel within 600 m get their proxy
+  intensity, capped so that no VIIRS pixel would exceed the detection floor. This adds
+  1.8 % on top of Swiss VIIRS.
+- *Abroad,* VIIRS pixels are used unchanged (softened as 385 m areas).
+
+**Two-scale model.** Sources farther than 1.5 km go through the 250 m model (terrain
+shadow from the ray-cast table). Hectare sources within 1.5 km are summed on the 100 m grid,
+each with its own terrain shadow traced along the lamp → observer path in the DEM (lamp at
+5 m). A smoothstep taper of ±300 m hands sources over, so each is counted once.
+Recalibrated against Lorenz 2025 (terrain off, 250 m): AOD 0.12, RMS 0.047 mag.
+
+**Sky sampling.** Zenith plus rings at 30°, 45° and 60° (12 azimuths each), weighted by
+solid angle: bands 30–37.5°, 37.5–52.5°, 52.5–75°, 75–90° → 0.218, 0.369, 0.345, 0.068.
+The previous version used only the zenith and a 45° ring. That underweighted the brighter
+low part of the band and read about 0.13 mag too dark (`allsky30_minus_previous_layer`).
+
+**Masks.**
+
+- *Visibility:* the 5°-sector horizon maxima (Copernicus DSM, so trees count) must stay
+  below 10° in at least 54 of 72 sectors.
+- *Buildings:* at least 200 m from any OSM building outline (centroid distance minus
+  outline radius, so slightly conservative). This uses 1.62 M buildings from the
+  Switzerland, Franche-Comté, Alsace and Freiburg extracts, barns and sheds included.
+- *Lakes:* blanked.
+
+17.5 % of land pixels pass: 54 % fail visibility and 54 % fail the building distance,
+with much overlap.
+
+**What the local sources change.** Within the shown pixels, very little:
+
+| Variant (same sky sampling) | Δ mag vs central, 2 % / median / 98 % | Rank ρ |
+|---|---|---|
+| Raw VIIRS only | −0.025 / +0.002 / +0.049 | 0.9994 |
+| No fill | +0.001 / +0.005 / +0.045 | 0.9997 |
+| Fill × 2 | −0.022 / −0.002 / 0.000 | 0.9999 |
+
+Sources within 1.5 km give a median 8 % (98th percentile 31 %) of the artificial zenith
+light at shown pixels. Requiring 200 m from buildings already removes the places where
+hectare-scale light dominates, so at a valid site the sky glow is still set by towns
+kilometres away. What this model does **not** include is direct glare: a lamp or a lit
+window in direct view at a few hundred metres ruins dark adaptation without adding much
+sky glow. That needs a line-of-sight count of nearby lights, not a sky-brightness model.
+
+Data in `outputs/allsky30_fields_lv95.tif` (not in git; regenerate with
+`python -m darksky allsky`): `allsky30_mag` (unmasked), `zenith_mag`, `local_share`,
+`visible_fraction_below10`, `building_dist_m`, `shown`, `allsky30_minus_previous_layer`.
+Summaries: `outputs/allsky30_summary.json`, `allsky30_sensitivity.json`,
+`calibration_allsky.json`, `sources_*.json`.
+
 ## Method
 
 1. **Domain.** A 140 × 140 km LV95 square centred on Bern. Night-time drive-time isochrones
@@ -185,9 +253,14 @@ and the drive-time contours on top. Toggle or fade layers in the "Maps displayed
   not MeteoSwiss climatology. Real tops vary from ~700 m to > 1800 m between events and
   are lower in Jan–Feb than in Oct–Nov. Also, being above the fog *hides* the Mittelland
   lights beneath it, which this clear-sky model does not credit.
-- **No access information.** Per your request the layers are not masked by roads, forest,
-  land cover or drive time; only lakes are blanked. Check road access, winter closures
+- **No access information.** The layers are not masked by roads, forest, land cover or
+  drive time (only lakes are blanked; the all-sky layer also applies its visibility and
+  building masks). Check road access, winter closures
   (e.g. Gurnigel and the Gantrisch roads), parking and legality of tracks on the map.
+- **Local sources (all-sky layer).** The hectare proxy assumes every resident, job or
+  building emits like the Swiss average; untagged motorways are treated as possibly lit,
+  though most Swiss motorways are dark; OSM `lit` tags are incomplete. Abroad there is no
+  hectare data. Direct glare from lamps in view is not modelled.
 - **Ground truth needed to confirm the ranking.**
   - *Instruments:* an SQM-L (narrow, ~20° FWHM) or, better, a calibrated all-sky camera
     (fisheye + photometric calibration) on several clear, moonless nights at a transect
@@ -207,7 +280,7 @@ uv pip install --python .venv/bin/python numpy scipy rasterio geopandas shapely 
 # VIIRS needs a free EOG login: download
 #   https://eogdata.mines.edu/nighttime_light/annual/v22/2025/VNL_npp_2025_global_vcmslcfg_v2_c202604011200.average_masked.dat.tif.gz
 # into data/raw/viirs/ (or point config.VIIRS_FILE at any DNB radiance GeoTIFF)
-.venv/bin/python -m darksky            # all steps, ~30 min on 14 cores
+.venv/bin/python -m darksky            # all steps, ~40 min on 14 cores
 .venv/bin/python -m darksky layers     # just re-colour / re-export
 ```
 

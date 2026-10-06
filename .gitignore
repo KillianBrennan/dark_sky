@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 # 80 MB float data product; regenerate with: python -m darksky layers
 outputs/darksky_fields_lv95.tif
+outputs/allsky30_fields_lv95.tif

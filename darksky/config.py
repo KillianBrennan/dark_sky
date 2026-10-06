@@ -69,3 +69,22 @@ VIIRS_MIN_RADIANCE = 0.0               # nW/cm2/sr; the *masked* VNL product alr
 SOURCE_RADIUS_KM = 250
 VIIRS_FILE = RAW / "viirs" / "VNL_npp_2025_global_vcmslcfg_v2_c202604011200.average_masked.dat.tif.gz"
 LORENZ_YEAR = 2025                      # same year as the VIIRS composite -> like-for-like calibration
+
+# ---- local sources from BFS hectare statistics (STATPOP / STATENT / building statistics) ----
+BFS_FILES = {
+    "pop": "volkszaehlung-bevoelkerungsstatistik_einwohner_2024_2056.csv",
+    "jobs": "betriebszaehlungen-beschaeftigte_vollzeitaequivalente_2023_2056.csv",
+    "bldg": "volkszaehlung-gebaeudestatistik_gebaeude_2024_2056.csv",
+}
+BFS_URL = "https://data.geo.admin.ch/{coll}/{item}/{file}"
+DOWNSCALE_SIGMA_M = 400.0     # VIIRS footprint + geolocation: Gaussian redistribution scale
+DOWNSCALE_RADIUS_M = 600.0
+VIIRS_DETECTION_FLOOR = 0.45  # nW/cm2/sr, ~1st percentile of lit VNL pixels in the domain
+MISSED_FILL_FACTOR = 1.0      # scale on the per-unit intensity given to VIIRS-dark inhabited hectares
+LOCAL_RADIUS_M = 1500.0       # sources nearer than this are summed at 100 m with exact terrain
+LOCAL_TAPER_M = 300.0         # half-width of the smooth hand-over between local and far terms
+
+# ---- all-sky layer masks ----
+VIS_MAX_HORIZON_DEG = 10.0    # "good visibility": terrain below this ...
+VIS_MIN_FRACTION = 0.75       # ... over at least this fraction of the horizon (5-deg sector maxima)
+BUILDING_MIN_DIST_M = 200.0   # minimum distance to any OSM building outline
