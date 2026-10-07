@@ -132,10 +132,7 @@ def run(recalibrate=False):
             dst.write(Ly._raster(g, v, sh), i)
             dst.set_band_description(i, k)
     shown = np.where(keep, f["allsky30_mag"], np.nan)
-    Ly.write_rgba("3_allsky30", shown, g, tr, sh, 19.4, 21.4, dark_is_high=True)
-    Ly.legend("3_allsky30", "3  Mean sky brightness above 30°, V (mag/arcsec²), incl. local sources",
-              19.4, 21.4, [19.4, 19.8, 20.2, 20.6, 21.0, 21.4], None,
-              "Shown only where terrain < 10° over ≥ 75 % of the horizon and ≥ 200 m from any building.")
+    colour_layer(shown, g, tr, sh)
     s = {"shown_fraction_of_land": float(keep.sum() / (~water).sum()),
          "fail_visibility": float(((vis < C.VIS_MIN_FRACTION) & ~water).sum() / (~water).sum()),
          "fail_buildings": float(((bdist < C.BUILDING_MIN_DIST_M) & ~water).sum() / (~water).sum()),
@@ -145,6 +142,24 @@ def run(recalibrate=False):
          "local_share_zenith_shown_median": float(np.nanmedian(np.where(keep, f["local_share"], np.nan)))}
     (C.OUT / "allsky30_summary.json").write_text(json.dumps(s, indent=2))
     print(json.dumps(s, indent=2))
+
+
+BREAKS = [19.75, 20.0, 20.25, 20.5, 20.75, 21.0]   # 7 classes of 0.25 mag
+
+
+def colour_layer(shown=None, g=None, tr=None, sh=None):
+    """Stepped (7-class) RGBA COG + legend; re-colours from the fields file if called alone."""
+    if shown is None:
+        g = np.load(C.INTERIM / "terrain_100m.npz")
+        tr, sh = rasterio.Affine(*g["transform"]), tuple(g["shape"])
+        with rasterio.open(C.OUT / "allsky30_fields_lv95.tif") as s:
+            dsc = list(s.descriptions)
+            mag = s.read(dsc.index("allsky30_mag") + 1)[g["rows"], g["cols"]]
+            ok = s.read(dsc.index("shown") + 1)[g["rows"], g["cols"]] > 0
+        shown = np.where(ok, mag, np.nan)
+    Ly.write_rgba("3_allsky30", shown, g, tr, sh, BREAKS[0], BREAKS[-1], breaks=BREAKS)
+    Ly.stepped_legend("3_allsky30", "3  Mean sky brightness above 30°, V (mag/arcsec²), incl. local sources",
+                      BREAKS, "Shown only where terrain < 10° over ≥ 75 % of the horizon and ≥ 200 m from any building.")
 
 
 def sensitivity():
@@ -167,5 +182,7 @@ def sensitivity():
 if __name__ == "__main__":
     if sys.argv[1:] == ["sens"]:
         sensitivity()
+    elif sys.argv[1:] == ["colour"]:
+        colour_layer()
     else:
         run(recalibrate="--recalibrate" in sys.argv)

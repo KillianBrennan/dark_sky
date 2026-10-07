@@ -197,17 +197,28 @@ def _hatch(shape, period=6, width=2):
     return ((r + c) % period) < width
 
 
+def stepped_colours(n):
+    """n evenly spaced steps of the blue ramp, light -> dark."""
+    return [BLUE[i] for i in np.linspace(0, len(BLUE) - 1, n).round().astype(int)]
+
+
 def write_rgba(name, value, g, tr, shape, vmin, vmax, dark_is_high=True, hatch_nan=None,
-               alpha_from=None):
-    """Colour `value` on the blue ramp (dark = darkest sky / best) and write an RGBA COG."""
+               alpha_from=None, breaks=None):
+    """Colour `value` on the blue ramp (dark = darkest sky / best) and write an RGBA COG.
+    With `breaks` (ascending class boundaries) the ramp is stepped into len(breaks)+1 classes."""
     v = _raster(g, value, shape)
-    t = (v - vmin) / (vmax - vmin)
-    if not dark_is_high:
-        t = 1 - t
-    t = np.clip(t, 0, 1)
-    lut = ramp_lut()
-    idx = np.nan_to_num(t * 255, nan=0).astype(int)
-    rgb = lut[idx]
+    if breaks is not None:
+        cols = np.array([_hex(h) for h in stepped_colours(len(breaks) + 1)], np.uint8)
+        k = np.digitize(np.nan_to_num(v, nan=-np.inf), breaks)
+        rgb = cols[k if dark_is_high else len(breaks) - k]
+    else:
+        t = (v - vmin) / (vmax - vmin)
+        if not dark_is_high:
+            t = 1 - t
+        t = np.clip(t, 0, 1)
+        lut = ramp_lut()
+        idx = np.nan_to_num(t * 255, nan=0).astype(int)
+        rgb = lut[idx]
     a = np.where(np.isfinite(v), 255, 0).astype(np.uint8)
     inside = np.zeros(shape, bool)
     inside[g["rows"], g["cols"]] = True
@@ -231,6 +242,33 @@ def write_rgba(name, value, g, tr, shape, vmin, vmax, dark_is_high=True, hatch_n
     rio_copy(tmp, out, driver="COG", compress="DEFLATE", overview_resampling="nearest", blocksize=256)
     tmp.unlink()
     return out
+
+
+def stepped_legend(name, title, breaks, note=None, fmt="{:.2f}"):
+    """Discrete legend: one swatch per class, boundaries labelled between swatches."""
+    cols = stepped_colours(len(breaks) + 1)
+    fig, ax = plt.subplots(figsize=(4.6, 1.3 if not note else 1.55), dpi=200)
+    n = len(cols)
+    for i, c in enumerate(cols):
+        ax.add_patch(plt.Rectangle((i + 0.03, 0), 0.94, 1, color=c, lw=0))   # 2px-ish surface gap
+    ax.set_xlim(0, n)
+    ax.set_ylim(0, 1)
+    ax.set_yticks([])
+    ax.set_xticks(range(1, n))
+    ax.set_xticklabels([fmt.format(b) for b in breaks], fontsize=7, color="#52514e")
+    ax.text(0.0, -0.55, "← brighter sky", fontsize=6.5, color="#52514e", ha="left", va="top", transform=ax.transData)
+    ax.text(n, -0.55, "darker sky →", fontsize=6.5, color="#52514e", ha="right", va="top", transform=ax.transData)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    ax.tick_params(length=0, pad=3)
+    ax.set_title(title, fontsize=8, loc="left", color="#0b0b0b")
+    if note:
+        fig.text(0.01, 0.02, note, fontsize=6, color="#52514e")
+    fig.tight_layout()
+    p = C.OUT / f"legend_{name}.png"
+    fig.savefig(p, transparent=False, facecolor="#fcfcfb")
+    plt.close(fig)
+    return p
 
 
 def legend(name, title, vmin, vmax, ticks, labels=None, note=None, dark_is_high=True, hatch_label=None):
