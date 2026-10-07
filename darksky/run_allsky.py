@@ -157,7 +157,7 @@ def finalize():
             dst.write(Ly._raster(g, v, sh), i)
             dst.set_band_description(i, k)
     shown = np.where(keep, f["allsky30_mag"], np.nan)
-    colour_layer(shown, g, tr, sh)
+    colour_layer(g=g)
     s = {"shown_fraction_of_land": float(keep.sum() / (~water).sum()),
          "fail_visibility": float(((vis < C.VIS_MIN_FRACTION) & ~water).sum() / (~water).sum()),
          "fail_buildings": float(((bdist < C.BUILDING_MIN_DIST_M) & ~water).sum() / (~water).sum()),
@@ -176,18 +176,21 @@ BREAKS = [19.75, 20.0, 20.25, 20.5, 20.75, 21.0]   # 7 classes of 0.25 mag
 
 
 def colour_layer(shown=None, g=None, tr=None, sh=None):
-    """Stepped (7-class) RGBA COG + legend; re-colours from the fields file if called alone."""
-    if shown is None:
-        g = np.load(C.INTERIM / "terrain_100m.npz")
-        tr, sh = rasterio.Affine(*g["transform"]), tuple(g["shape"])
-        with rasterio.open(C.OUT / "allsky30_fields_lv95.tif") as s:
-            dsc = list(s.descriptions)
-            mag = s.read(dsc.index("allsky30_mag") + 1)[g["rows"], g["cols"]]
-            ok = s.read(dsc.index("shown") + 1)[g["rows"], g["cols"]] > 0
-        shown = np.where(ok, mag, np.nan)
-    Ly.write_rgba("3_allsky30", shown, g, tr, sh, BREAKS[0], BREAKS[-1], breaks=BREAKS)
-    Ly.stepped_legend("3_allsky30", "3  Mean sky brightness above 30°, V (mag/arcsec²), incl. local sources",
-                      BREAKS, "Shown where terrain < 10° over ≥ 75 % of the horizon, ≥ 200 m from buildings, < 50 % forest.")
+    """Stepped (7-class) RGBA COGs + legends from the fields file: the masked layer_3 and an
+    unmasked layer_3b (lakes still blank). `shown` etc. are accepted for the finalize() call."""
+    g = np.load(C.INTERIM / "terrain_100m.npz") if g is None else g
+    tr, sh = rasterio.Affine(*g["transform"]), tuple(g["shape"])
+    with rasterio.open(C.OUT / "allsky30_fields_lv95.tif") as s:
+        dsc = list(s.descriptions)
+        mag = s.read(dsc.index("allsky30_mag") + 1)[g["rows"], g["cols"]]
+        ok = s.read(dsc.index("shown") + 1)[g["rows"], g["cols"]] > 0
+    water = Ly._water_fraction(g["x"], g["y"]) > 0.5
+    title = "3  Mean sky brightness above 30°, V (mag/arcsec²), incl. local sources"
+    Ly.write_rgba("3_allsky30", np.where(ok, mag, np.nan), g, tr, sh, BREAKS[0], BREAKS[-1], breaks=BREAKS)
+    Ly.stepped_legend("3_allsky30", title, BREAKS,
+                      "Shown where terrain < 10° over ≥ 75 % of the horizon, ≥ 200 m from buildings, < 50 % forest.")
+    Ly.write_rgba("3b_allsky30_unmasked", np.where(water, np.nan, mag), g, tr, sh, BREAKS[0], BREAKS[-1], breaks=BREAKS)
+    Ly.stepped_legend("3b_allsky30_unmasked", title, BREAKS, "No site masks (only lakes blank).")
 
 
 def sensitivity():
