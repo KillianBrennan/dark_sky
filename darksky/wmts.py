@@ -12,7 +12,10 @@ Tile matrix set "lv95_darksky": EPSG:2056, origin at the domain's top-left corne
 resampling (= no blur) happens at those zooms. Finer levels replicate the 100 m pixels
 (nearest neighbour); coarser levels take the darkest opaque source pixel in each output
 pixel's footprint for the masked layer (isolated good sites stay visible) and the nearest
-source pixel otherwise.
+source pixel otherwise. Tile images are 512 px for a 256 px grid cell (HiDPI): the viewer
+draws them into 512 device pixels on a Retina screen, so its tile smoothing never
+blurs the 100 m pixels; on normal screens they are scaled down 2x. The finest (10 m) level,
+which the viewer enlarges at all closer zooms, uses 1024 px images (2.5 m per pixel).
 Map link: layers=WMTS|<capabilities url>|<layer identifier>
 """
 from xml.sax.saxutils import escape
@@ -28,7 +31,11 @@ RAW = "https://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/"
 # exactly the viewer's LV95 zoom resolutions (zoom 0..6), so tiles are drawn 1:1 without
 # resampling; finer zooms upscale the 10 m tiles, in which a 100 m pixel is a 10x10 block
 RES = [650.0, 500.0, 250.0, 100.0, 50.0, 20.0, 10.0]
-TILE = 256
+TILE = 256          # tile size in the tile grid (capabilities)
+# image pixels per grid pixel, per level: 2 = HiDPI (drawn 1:1 on Retina). The finest level is
+# also what the viewer enlarges for all closer zooms (5 m ... 0.1 m), so it gets 4 (1024 px,
+# 2.5 m per image pixel) to keep the 100 m block edges sharp down to ~1:5000.
+SS = [2, 2, 2, 2, 2, 2, 4]
 TMS = "lv95_darksky"
 
 LAYERS = [
@@ -48,10 +55,11 @@ LAYERS = [
 ]
 
 
-def _render(rgba, res, n_w, n_h, mode, src_res=100.0):
-    """Resample the (H, W, 4) 100 m image onto a canvas of n_h x n_w tiles at `res`."""
+def _render(rgba, res, n_w, n_h, mode, src_res=100.0, tile_px=TILE):
+    """Resample the (H, W, 4) 100 m image onto a canvas of n_h x n_w tiles of `tile_px`
+    pixels at `res` metres per pixel."""
     H, W = rgba.shape[:2]
-    oh, ow = n_h * TILE, n_w * TILE
+    oh, ow = n_h * tile_px, n_w * tile_px
     out = np.zeros((oh, ow, 4), np.uint8)
     if mode == "darkest" and res > src_res:
         # footprint of each output pixel in source pixels: [edge_k, edge_k+1)
@@ -93,12 +101,13 @@ def build():
             rgba = s.read().transpose(1, 2, 0)
         n_files = 0
         for z, res, n_w, n_h in matrices:
-            canvas = _render(rgba, res, n_w, n_h, L["reduce"])
+            tp = TILE * SS[z]
+            canvas = _render(rgba, res / SS[z], n_w, n_h, L["reduce"], tile_px=tp)
             for r in range(n_h):
                 for c in range(n_w):
                     d = out / L["id"] / str(z) / str(r)
                     d.mkdir(parents=True, exist_ok=True)
-                    Image.fromarray(canvas[r * TILE:(r + 1) * TILE, c * TILE:(c + 1) * TILE], "RGBA").save(
+                    Image.fromarray(canvas[r * tp:(r + 1) * tp, c * tp:(c + 1) * tp], "RGBA").save(
                         d / f"{c}.png", optimize=True)
                     n_files += 1
         print(f"{L['id']}: {n_files} tiles", flush=True)
