@@ -8,9 +8,11 @@ Layout (served from GitHub raw):
   outputs/wmts/WMTSCapabilities.xml
   outputs/wmts/<layer>/<TileMatrix>/<TileRow>/<TileCol>.png
 Tile matrix set "lv95_darksky": EPSG:2056, origin at the domain's top-left corner,
-256 px tiles at 800/400/200/100/50/25 m per pixel. Levels finer than the 100 m data are
-pixel-replicated (crisp when zoomed in); coarser levels take the darkest opaque sub-pixel
-for the masked layer (isolated good sites stay visible) and the central sub-pixel otherwise.
+256 px tiles at the viewer's own LV95 zoom resolutions 650/500/250/100/50/20/10 m, so no
+resampling (= no blur) happens at those zooms. Finer levels replicate the 100 m pixels
+(nearest neighbour); coarser levels take the darkest opaque source pixel in each output
+pixel's footprint for the masked layer (isolated good sites stay visible) and the nearest
+source pixel otherwise.
 Map link: layers=WMTS|<capabilities url>|<layer identifier>
 """
 from xml.sax.saxutils import escape
@@ -23,7 +25,9 @@ from . import config as C
 from .fetch import domain_bounds, domain_lv95
 
 RAW = "https://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/"
-RES = [800.0, 400.0, 200.0, 100.0, 50.0, 25.0]
+# exactly the viewer's LV95 zoom resolutions (zoom 0..6), so tiles are drawn 1:1 without
+# resampling; finer zooms upscale the 10 m tiles, in which a 100 m pixel is a 10x10 block
+RES = [650.0, 500.0, 250.0, 100.0, 50.0, 20.0, 10.0]
 TILE = 256
 TMS = "lv95_darksky"
 
@@ -44,23 +48,35 @@ LAYERS = [
 ]
 
 
-def _level(rgba, factor, mode):
-    """Resample the (H, W, 4) 100 m image by `factor` (>1 coarser, <1 finer)."""
-    if factor < 1:
-        k = int(round(1 / factor))
-        return np.repeat(np.repeat(rgba, k, axis=0), k, axis=1)
-    if factor == 1:
-        return rgba
-    k = int(factor)
-    h, w = rgba.shape[0] // k * k, rgba.shape[1] // k * k
-    blk = rgba[:h, :w].reshape(h // k, k, w // k, k, 4).transpose(0, 2, 1, 3, 4).reshape(h // k, w // k, k * k, 4)
-    if mode == "darkest":
-        lum = blk[..., :3].astype(np.int32).sum(-1)
-        lum = np.where(blk[..., 3] > 0, lum, 10_000)
-        i = lum.argmin(-1)
-    else:
-        i = np.full(blk.shape[:2], (k // 2) * k + k // 2)
-    return np.take_along_axis(blk, i[..., None, None], axis=2)[:, :, 0, :]
+def _render(rgba, res, n_w, n_h, mode, src_res=100.0):
+    """Resample the (H, W, 4) 100 m image onto a canvas of n_h x n_w tiles at `res`."""
+    H, W = rgba.shape[:2]
+    oh, ow = n_h * TILE, n_w * TILE
+    out = np.zeros((oh, ow, 4), np.uint8)
+    if mode == "darkest" and res > src_res:
+        # footprint of each output pixel in source pixels: [edge_k, edge_k+1)
+        er = np.minimum(np.floor(np.arange(oh + 1) * res / src_res).astype(int), H)
+        ec = np.minimum(np.floor(np.arange(ow + 1) * res / src_res).astype(int), W)
+        rows = np.nonzero(er[:-1] < H)[0]
+        cols = np.nonzero(ec[:-1] < W)[0]
+        key = np.where(rgba[..., 3] > 0, 765 - rgba[..., :3].astype(np.int32).sum(-1), -1)
+        k1 = np.maximum.reduceat(key, er[rows], axis=0)
+        k2 = np.maximum.reduceat(k1, ec[cols], axis=1)
+        # map darkness keys back to colours (few distinct colours)
+        pal = {}
+        flat_k, flat_c = key.ravel(), rgba.reshape(-1, 4)
+        for k in np.unique(flat_k):
+            pal[k] = flat_c[np.argmax(flat_k == k)] if k >= 0 else np.zeros(4, np.uint8)
+        block = np.zeros(k2.shape + (4,), np.uint8)
+        for k, c in pal.items():
+            block[k2 == k] = c
+        out[rows[0]:rows[-1] + 1, cols[0]:cols[-1] + 1] = block
+        return out
+    ri = np.floor((np.arange(oh) + 0.5) * res / src_res).astype(int)
+    ci = np.floor((np.arange(ow) + 0.5) * res / src_res).astype(int)
+    vr, vc = ri < H, ci < W
+    out[np.ix_(vr, vc)] = rgba[np.ix_(ri[vr], ci[vc])]
+    return out
 
 
 def build():
@@ -77,9 +93,7 @@ def build():
             rgba = s.read().transpose(1, 2, 0)
         n_files = 0
         for z, res, n_w, n_h in matrices:
-            img = _level(rgba, res / 100.0, L["reduce"])
-            canvas = np.zeros((n_h * TILE, n_w * TILE, 4), np.uint8)
-            canvas[:img.shape[0], :img.shape[1]] = img
+            canvas = _render(rgba, res, n_w, n_h, L["reduce"])
             for r in range(n_h):
                 for c in range(n_w):
                     d = out / L["id"] / str(z) / str(r)
