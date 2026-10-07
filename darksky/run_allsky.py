@@ -208,15 +208,17 @@ def finalize():
     print(json.dumps(s, indent=2))
 
 
-def breaks_from_unmasked(mag, n=7, step=0.05):
-    """Equal-count class breaks over the unmasked field, rounded to `step` mag."""
-    q = np.nanquantile(mag, np.arange(1, n) / n)
+def breaks_from_unmasked(mag, n=7, step=0.01):
+    """Logarithmic (halving) class breaks over the unmasked field: from the brightest end the
+    classes hold 50 %, 25 %, 12.5 %, ... of the pixels and the darkest class the remainder,
+    so colour resolution is concentrated in the dark tail. Rounded to `step` mag."""
+    q = np.nanquantile(mag, 1.0 - 0.5 ** np.arange(1, n))
     return [round(float(np.round(v / step) * step), 2) for v in q]
 
 
 def colour_layer(shown=None, g=None, tr=None, sh=None):
     """Stepped 7-class RGBA COGs + legends from the fields file: masked layer_3 and fully
-    unmasked layer_3b. Breaks are equal-count quantiles of the *unmasked* field."""
+    unmasked layer_3b. Breaks are halving quantiles of the *unmasked* field."""
     g = np.load(C.INTERIM / "terrain_100m.npz") if g is None else g
     tr, sh = rasterio.Affine(*g["transform"]), tuple(g["shape"])
     with rasterio.open(C.OUT / "allsky30_fields_lv95.tif") as s:
@@ -229,7 +231,8 @@ def colour_layer(shown=None, g=None, tr=None, sh=None):
     Ly.stepped_legend("3_allsky30", title, br,
                       "Shown where terrain < 10° over ≥ 75 % of the horizon, ≥ 200 m from buildings, < 50 % forest.")
     Ly.write_rgba("3b_allsky30_unmasked", mag, g, tr, sh, br[0], br[-1], breaks=br)
-    Ly.stepped_legend("3b_allsky30_unmasked", title, br, "No masks. Classes hold equal numbers of pixels over the whole square.")
+    Ly.stepped_legend("3b_allsky30_unmasked", title, br,
+                      "No masks. Classes hold 50, 25, 12.5, 6.25, 3.1, 1.6, 1.6 % of the square (brightest to darkest).")
     return br
 
 

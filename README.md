@@ -23,7 +23,7 @@ Colour keys are in `outputs/legend_*.png`. All brightness layers use one blue ra
 |---|---|---|
 | `layer_1_airglow_SE.tif` | 1. OH airglow gravity waves | Artificial NIR (Gen 3, ~850 nm) skyglow in the darkest 30°-wide window at 20–30° elevation within azimuth 45–225° (E through S), in magnitudes relative to the best 1 % of the square. Grey hatching marks pixels where terrain blocks every E–S window. |
 | `layer_2_zenith.tif` | 2. Hα nebulae, 3. deep sky | Zenith sky brightness, V band, LED-corrected (mag/arcsec²). |
-| `layer_3_allsky30.tif` | **Main summary layer**; 3. Milky Way / binocular | Mean V sky brightness over the whole sky above 30° (mag/arcsec²), **including local sources** (settlements, jobs, buildings, larger roads at 100 m) **and direct glare** from lamps in view. **Shown only where terrain stays below 10° over ≥ 75 % of the horizon, the point is ≥ 200 m from any building, and the 100 m pixel is < 50 % forest**; everything else is transparent. Stepped colour scale: 7 equal-count classes of the unmasked field, breaks at 19.50 / 19.95 / 20.25 / 20.55 / 20.80 / 21.10. See [All-sky layer](#all-sky-layer-with-local-sources). |
+| `layer_3_allsky30.tif` | **Main summary layer**; 3. Milky Way / binocular | Mean V sky brightness over the whole sky above 30° (mag/arcsec²), **including local sources** (settlements, jobs, buildings, larger roads at 100 m) **and direct glare** from lamps in view. **Shown only where terrain stays below 10° over ≥ 75 % of the horizon, the point is ≥ 200 m from any building, and the 100 m pixel is < 50 % forest**; everything else is transparent. Stepped colour scale: 7 halving classes of the unmasked field (brightest 50 %, then 25 %, 12.5 %, … of pixels), breaks at 20.40 / 20.88 / 21.11 / 21.19 / 21.24 / 21.26. See [All-sky layer](#all-sky-layer-with-local-sources). |
 | `layer_3b_allsky30_unmasked.tif` | Context for the main layer | Same values and 7-class scale as `layer_3_allsky30`, with no masks at all: every pixel of the square, lakes and rivers included. |
 | `layer_4_meteors.tif` | 4. Meteors | Relative visual meteor rate: open-sky fraction above 15° × r^(NELM − NELM_pristine), r = 2.5. |
 | `layer_5_above_inversion.tif` | Autumn/winter bonus | Probability that the site lies above the Oct–Feb Mittelland stratus top (orange; transparent = below). |
@@ -206,10 +206,14 @@ shielding. A fully shielded LED street lamp sends almost nothing toward a distan
 an old globe lamp a lot. The sky-only value is kept as `allsky30_sky_only_mag` and the
 veil/sky ratio as `glare_veil_ratio` in the fields file.
 
-**Colour scale.** Seven equal-count classes of the *unmasked* field (rounded to 0.05 mag),
-shared by both layers so colours are comparable. In the unmasked layer each class holds
-12–16 % of the pixels; the masked sites fall mostly in the middle classes (4 % in the
-darkest).
+**Colour scale.** Seven halving classes of the *unmasked* field: from the brightest end
+they hold 50 %, 25 %, 12.5 %, 6.25 %, 3.1 %, 1.6 % and the remaining 1.6 % of pixels
+(breaks rounded to 0.01 mag). Both layers share the breaks, so colours are comparable.
+This concentrates colour resolution in the dark tail, but that tail is narrow: the four
+darkest classes together span only ~0.15 mag (21.11–21.26), and adjacent breaks there are
+0.02–0.05 mag apart. That is below the model's resolution, so in that range the colours
+show rank order rather than meaningful brightness differences. Masked sites:
+65 % brightest class, 0.3 % darkest.
 
 Data in `outputs/allsky30_fields_lv95.tif` (not in git; regenerate with
 `python -m darksky allsky`): `allsky30_mag` (unmasked), `zenith_mag`, `local_share`,
