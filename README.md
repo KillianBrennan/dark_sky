@@ -23,7 +23,7 @@ Colour keys are in `outputs/legend_*.png`. All brightness layers use one blue ra
 |---|---|---|
 | `layer_1_airglow_SE.tif` | 1. OH airglow gravity waves | Artificial NIR (Gen 3, ~850 nm) skyglow in the darkest 30°-wide window at 20–30° elevation within azimuth 45–225° (E through S), in magnitudes relative to the best 1 % of the square. Grey hatching marks pixels where terrain blocks every E–S window. |
 | `layer_2_zenith.tif` | 2. Hα nebulae, 3. deep sky | Zenith sky brightness, V band, LED-corrected (mag/arcsec²). |
-| `layer_3_allsky30.tif` | **Main summary layer**; 3. Milky Way / binocular | Mean V sky brightness over the whole sky above 30° (mag/arcsec²), **including local sources** (settlements, jobs, buildings, larger roads at 100 m). **Shown only where terrain stays below 10° over ≥ 75 % of the horizon, the point is ≥ 200 m from any building, and the 100 m pixel is < 50 % forest**; everything else is transparent. Stepped colour scale: 7 classes, breaks at 19.75 / 20.00 / 20.25 / 20.50 / 20.75 / 21.00. See [All-sky layer](#all-sky-layer-with-local-sources). |
+| `layer_3_allsky30.tif` | **Main summary layer**; 3. Milky Way / binocular | Mean V sky brightness over the whole sky above 30° (mag/arcsec²), **including local sources** (settlements, jobs, buildings, larger roads at 100 m) **and direct glare** from lamps in view. **Shown only where terrain stays below 10° over ≥ 75 % of the horizon, the point is ≥ 200 m from any building, and the 100 m pixel is < 50 % forest**; everything else is transparent. Stepped colour scale: 7 equal-count classes of the unmasked field, breaks at 19.50 / 19.95 / 20.25 / 20.55 / 20.80 / 21.10. See [All-sky layer](#all-sky-layer-with-local-sources). |
 | `layer_3b_allsky30_unmasked.tif` | Context for the main layer | Same values and 7-class scale as `layer_3_allsky30`, with no masks at all: every pixel of the square, lakes and rivers included. |
 | `layer_4_meteors.tif` | 4. Meteors | Relative visual meteor rate: open-sky fraction above 15° × r^(NELM − NELM_pristine), r = 2.5. |
 | `layer_5_above_inversion.tif` | Autumn/winter bonus | Probability that the site lies above the Oct–Feb Mittelland stratus top (orange; transparent = below). |
@@ -170,15 +170,52 @@ is mostly open pasture, ridgelines and scattered single 100 m pixels.
 
 Sources within 1.5 km give a median 10 % of the artificial zenith light at shown pixels. Requiring 200 m from buildings already removes the places where
 hectare-scale light dominates, so at a valid site the sky glow is still set by towns
-kilometres away. What this model does **not** include is direct glare: a lamp or a lit
-window in direct view at a few hundred metres ruins dark adaptation without adding much
-sky glow. That needs a line-of-sight count of nearby lights, not a sky-brightness model.
+kilometres away. Direct glare from lamps in view is a separate, larger local effect;
+it is now included (see below).
+
+**Direct glare.** A lamp in view scatters light inside the eye and lays a veil over the
+retinal image that acts like extra background luminance. It is added to the sky
+brightness using the CIE 146:2002 general disability-glare equation,
+L_veil/E = 10/θ³ + (5/θ² + 0.1p/θ)[1 + (A/62.5)⁴] + 0.0025p, with age A = 40 and
+pigmentation p = 0.5 (`CIE_AGE`, `CIE_PIGMENT`).
+
+- *Illuminance at the eye:* E for each lamp within 6 km is computed in the sky model's own
+  calibration, so the veil comes out in natural-sky units with no absolute photometry.
+  It is scale × source weight × Garstang emission toward the eye (the near-horizontal
+  ψ⁴ term VIIRS cannot see) × extinction / d².
+- *Line of sight:* a lamp counts only if it is in direct view: per 100 m pixel, the
+  running-maximum DSM angle along 72 rays at 11 distances (int8, 0.25° steps, 1.5 GB),
+  with a ±0.25° visibility ramp.
+- *Gaze:* the veil is averaged over the same gaze directions and weights as the sky
+  brightness (rings at 30/45/60° and the zenith).
+- *Size:* at shown pixels glare adds a median 10 % to the sky luminance (90th percentile
+  41 %, 99th 98 %), i.e. −0.10 mag median, −0.37 mag at the 10th percentile and −0.74 mag
+  at the 1st. The implied lamp output is a median ~300 cd per inhabited hectare towards
+  the horizon (90th percentile ~1300 cd), plausible for a few streetlights plus façades
+  and windows.
+
+| Glare variant | Δ mag vs central, 2 % / median / 98 % | Rank ρ |
+|---|---|---|
+| Horizontal emission F = 0.30 (×2.4 lamp intensity) | −0.53 / −0.13 / 0.00 | 0.984 |
+| Observer age 25 | 0.00 / +0.007 / +0.035 | 0.9999 |
+| Observer age 60 | −0.155 / −0.033 / 0.00 | 0.998 |
+
+The glare term is the least certain part of the model. It scales directly with the
+near-horizontal lamp intensity, which VIIRS cannot measure, and OSM/BFS say nothing about
+shielding. A fully shielded LED street lamp sends almost nothing toward a distant observer,
+an old globe lamp a lot. The sky-only value is kept as `allsky30_sky_only_mag` and the
+veil/sky ratio as `glare_veil_ratio` in the fields file.
+
+**Colour scale.** Seven equal-count classes of the *unmasked* field (rounded to 0.05 mag),
+shared by both layers so colours are comparable. In the unmasked layer each class holds
+12–16 % of the pixels; the masked sites fall mostly in the middle classes (4 % in the
+darkest).
 
 Data in `outputs/allsky30_fields_lv95.tif` (not in git; regenerate with
 `python -m darksky allsky`): `allsky30_mag` (unmasked), `zenith_mag`, `local_share`,
-`visible_fraction_below10`, `building_dist_m`, `tree_fraction`, `shown`,
-`allsky30_minus_previous_layer`.
-Summaries: `outputs/allsky30_summary.json`, `allsky30_sensitivity.json`,
+`allsky30_sky_only_mag`, `glare_veil_ratio`, `visible_fraction_below10`, `building_dist_m`, `tree_fraction`,
+`shown`, `allsky30_minus_previous_layer` (vs the original VIIRS-only layer).
+Summaries: `outputs/allsky30_summary.json`, `allsky30_sensitivity.json`, `allsky30_glare_sensitivity.json`,
 `calibration_allsky.json`, `sources_*.json`.
 
 ## Method
@@ -268,7 +305,8 @@ Summaries: `outputs/allsky30_summary.json`, `allsky30_sensitivity.json`,
 - **Local sources (all-sky layer).** The hectare proxy assumes every resident, job or
   building emits like the Swiss average; untagged motorways are treated as possibly lit,
   though most Swiss motorways are dark; OSM `lit` tags are incomplete. Abroad there is no
-  hectare data. Direct glare from lamps in view is not modelled.
+  hectare data. Glare assumes the Garstang near-horizontal emission for every lamp
+  (no information on shielding) and the CIE eye-scatter function for a 40-year-old.
 - **Ground truth needed to confirm the ranking.**
   - *Instruments:* an SQM-L (narrow, ~20° FWHM) or, better, a calibrated all-sky camera
     (fisheye + photometric calibration) on several clear, moonless nights at a transect

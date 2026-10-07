@@ -1,0 +1,26 @@
+{
+  "glare_F030": {
+    "delta_mag_quantiles_shown": [
+      -0.53,
+      -0.131,
+      -0.0
+    ],
+    "spearman_shown": 0.9835371577733713
+  },
+  "glare_age25": {
+    "delta_mag_quantiles_shown": [
+      0.0,
+      0.007,
+      0.035
+    ],
+    "spearman_shown": 0.9998996450750126
+  },
+  "glare_age60": {
+    "delta_mag_quantiles_shown": [
+      -0.155,
+      -0.033,
+      -0.0
+    ],
+    "spearman_shown": 0.9982436355959811
+  }
+}
