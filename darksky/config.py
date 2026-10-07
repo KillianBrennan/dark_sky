@@ -88,3 +88,4 @@ LOCAL_TAPER_M = 300.0         # half-width of the smooth hand-over between local
 VIS_MAX_HORIZON_DEG = 10.0    # "good visibility": terrain below this ...
 VIS_MIN_FRACTION = 0.75       # ... over at least this fraction of the horizon (5-deg sector maxima)
 BUILDING_MIN_DIST_M = 200.0   # minimum distance to any OSM building outline
+MAX_TREE_FRACTION = 0.5       # hide pixels with at least this ESA WorldCover tree-cover share

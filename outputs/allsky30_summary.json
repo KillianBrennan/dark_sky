@@ -1,22 +1,24 @@
 {
-  "shown_fraction_of_land": 0.17547656696387048,
+  "shown_fraction_of_land": 0.08556865142113027,
   "fail_visibility": 0.5371954768327198,
   "fail_buildings": 0.538664576052726,
+  "fail_forest": 0.41527406088470176,
+  "removed_by_forest_only": 0.0899079155427402,
   "allsky30_shown_quantiles": [
-    18.13,
-    19.41,
-    20.09,
+    18.25,
+    19.46,
+    20.11,
     20.35,
-    20.66,
-    21.11,
+    20.64,
+    21.17,
     21.28
   ],
-  "local_share_zenith_shown_median": 0.08371420316950547,
   "change_vs_previous_layer_shown_quantiles": [
-    -0.191,
-    -0.143,
-    -0.13,
-    -0.118,
-    -0.095
-  ]
+    -0.202,
+    -0.147,
+    -0.134,
+    -0.121,
+    -0.088
+  ],
+  "local_share_zenith_shown_median": 0.10026613328139462
 }

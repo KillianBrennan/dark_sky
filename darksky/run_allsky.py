@@ -2,6 +2,8 @@
 
   .venv/bin/python -m darksky.run_allsky            # central run + layer
   .venv/bin/python -m darksky.run_allsky sens       # fill x0 / x2 sensitivity
+  .venv/bin/python -m darksky.run_allsky finalize   # re-apply masks + re-colour, no model run
+  .venv/bin/python -m darksky.run_allsky colour     # re-colour only
 """
 import json
 import sys
@@ -108,18 +110,41 @@ def fields(tag="central"):
     return f, g100, tr100
 
 
+def tree_fraction(g):
+    """ESA WorldCover 2021 tree cover (class 10) share of each 100 m pixel. The Copernicus
+    DSM puts the observer on top of the canopy inside large forests, so the horizon test
+    alone does not remove them."""
+    from rasterio.warp import Resampling, reproject
+    with rasterio.open(C.INTERIM / "worldcover.tif") as src:
+        trees = (src.read(1) == 10).astype(np.float32)
+        s_tr, s_crs = src.transform, src.crs
+    sh = tuple(g["shape"])
+    out = np.zeros(sh, np.float32)
+    reproject(trees, out, src_transform=s_tr, src_crs=s_crs, dst_transform=rasterio.Affine(*g["transform"]),
+              dst_crs=C.CRS_M, resampling=Resampling.average)
+    return out[g["rows"], g["cols"]]
+
+
 def run(recalibrate=False):
     cf = C.OUT / "calibration_allsky.json"
     cal = None if recalibrate or not cf.exists() else json.loads(cf.read_text())
     model("central", C.MISSED_FILL_FACTOR, cal)
+    finalize()
+
+
+def finalize():
+    """Masks, fields file, layer and summary from the saved central model run."""
     f, g, tr = fields("central")
     sh = tuple(g["shape"])
     vis = (g["horizon5"] < C.VIS_MAX_HORIZON_DEG).mean(1)
     bdist = building_distance(g["x"], g["y"])
     water = Ly._water_fraction(g["x"], g["y"]) > 0.5
-    keep = (vis >= C.VIS_MIN_FRACTION) & (bdist >= C.BUILDING_MIN_DIST_M) & ~water
+    trees = tree_fraction(g)
+    keep = ((vis >= C.VIS_MIN_FRACTION) & (bdist >= C.BUILDING_MIN_DIST_M) & (trees < C.MAX_TREE_FRACTION)
+            & ~water)
     f["visible_fraction_below10"] = vis
     f["building_dist_m"] = bdist
+    f["tree_fraction"] = trees
     f["shown"] = keep.astype(np.float32)
     # previous layer (VIIRS-only sources, 2-point sky sampling) for comparison
     with rasterio.open(C.OUT / "darksky_fields_lv95.tif") as s:
@@ -136,6 +161,9 @@ def run(recalibrate=False):
     s = {"shown_fraction_of_land": float(keep.sum() / (~water).sum()),
          "fail_visibility": float(((vis < C.VIS_MIN_FRACTION) & ~water).sum() / (~water).sum()),
          "fail_buildings": float(((bdist < C.BUILDING_MIN_DIST_M) & ~water).sum() / (~water).sum()),
+         "fail_forest": float(((trees >= C.MAX_TREE_FRACTION) & ~water).sum() / (~water).sum()),
+         "removed_by_forest_only": float(((trees >= C.MAX_TREE_FRACTION) & (vis >= C.VIS_MIN_FRACTION)
+                                          & (bdist >= C.BUILDING_MIN_DIST_M) & ~water).sum() / (~water).sum()),
          "allsky30_shown_quantiles": np.nanquantile(shown, [0, .02, .25, .5, .75, .98, 1]).round(2).tolist(),
          "change_vs_previous_layer_shown_quantiles": np.nanquantile(np.where(keep, f["allsky30_minus_previous_layer"], np.nan),
                                                                 [.02, .25, .5, .75, .98]).round(3).tolist(),
@@ -159,7 +187,7 @@ def colour_layer(shown=None, g=None, tr=None, sh=None):
         shown = np.where(ok, mag, np.nan)
     Ly.write_rgba("3_allsky30", shown, g, tr, sh, BREAKS[0], BREAKS[-1], breaks=BREAKS)
     Ly.stepped_legend("3_allsky30", "3  Mean sky brightness above 30°, V (mag/arcsec²), incl. local sources",
-                      BREAKS, "Shown only where terrain < 10° over ≥ 75 % of the horizon and ≥ 200 m from any building.")
+                      BREAKS, "Shown where terrain < 10° over ≥ 75 % of the horizon, ≥ 200 m from buildings, < 50 % forest.")
 
 
 def sensitivity():
@@ -184,5 +212,7 @@ if __name__ == "__main__":
         sensitivity()
     elif sys.argv[1:] == ["colour"]:
         colour_layer()
+    elif sys.argv[1:] == ["finalize"]:
+        finalize()
     else:
         run(recalibrate="--recalibrate" in sys.argv)

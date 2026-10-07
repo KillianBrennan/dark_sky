@@ -23,7 +23,7 @@ Colour keys are in `outputs/legend_*.png`. All brightness layers use one blue ra
 |---|---|---|
 | `layer_1_airglow_SE.tif` | 1. OH airglow gravity waves | Artificial NIR (Gen 3, ~850 nm) skyglow in the darkest 30°-wide window at 20–30° elevation within azimuth 45–225° (E through S), in magnitudes relative to the best 1 % of the square. Grey hatching marks pixels where terrain blocks every E–S window. |
 | `layer_2_zenith.tif` | 2. Hα nebulae, 3. deep sky | Zenith sky brightness, V band, LED-corrected (mag/arcsec²). |
-| `layer_3_allsky30.tif` | **Main summary layer**; 3. Milky Way / binocular | Mean V sky brightness over the whole sky above 30° (mag/arcsec²), **including local sources** (settlements, jobs, buildings, larger roads at 100 m). **Shown only where terrain stays below 10° over ≥ 75 % of the horizon and the point is ≥ 200 m from any building**; everything else is transparent. Stepped colour scale: 7 classes, breaks at 19.75 / 20.00 / 20.25 / 20.50 / 20.75 / 21.00. See [All-sky layer](#all-sky-layer-with-local-sources). |
+| `layer_3_allsky30.tif` | **Main summary layer**; 3. Milky Way / binocular | Mean V sky brightness over the whole sky above 30° (mag/arcsec²), **including local sources** (settlements, jobs, buildings, larger roads at 100 m). **Shown only where terrain stays below 10° over ≥ 75 % of the horizon, the point is ≥ 200 m from any building, and the 100 m pixel is < 50 % forest**; everything else is transparent. Stepped colour scale: 7 classes, breaks at 19.75 / 20.00 / 20.25 / 20.50 / 20.75 / 21.00. See [All-sky layer](#all-sky-layer-with-local-sources). |
 | `layer_4_meteors.tif` | 4. Meteors | Relative visual meteor rate: open-sky fraction above 15° × r^(NELM − NELM_pristine), r = 2.5. |
 | `layer_5_above_inversion.tif` | Autumn/winter bonus | Probability that the site lies above the Oct–Feb Mittelland stratus top (orange; transparent = below). |
 | `layer_ref_lorenz2025_zenith.tif` | Reference | Lorenz 2025 atlas zenith brightness, an independent model with no terrain and no LED correction. |
@@ -101,7 +101,7 @@ and the drive-time contours on top. Toggle or fade layers in the "Maps displayed
   2025 edition, D. J. Lorenz (djlorenz.github.io/astronomy/lp), after Cinzano/Falchi.
 - Terrain: Copernicus DEM GLO-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH
   2014-2018, provided under COPERNICUS by the European Union and ESA.
-- Water mask: ESA WorldCover 10 m 2021 v200 (CC BY 4.0).
+- Water and forest masks: ESA WorldCover 10 m 2021 v200 (CC BY 4.0).
 - Drive times: Valhalla (FOSSGIS public instance) on OpenStreetMap data © OpenStreetMap
   contributors (ODbL).
 
@@ -147,10 +147,15 @@ low part of the band and read about 0.13 mag too dark (`allsky30_minus_previous_
 - *Buildings:* at least 200 m from any OSM building outline (centroid distance minus
   outline radius, so slightly conservative). This uses 1.62 M buildings from the
   Switzerland, Franche-Comté, Alsace and Freiburg extracts, barns and sheds included.
+- *Forest:* less than 50 % ESA WorldCover 2021 tree cover (10 m) within the 100 m pixel
+  (`MAX_TREE_FRACTION`). The visibility test cannot catch closed forest, because the DSM
+  puts the observer on top of the canopy.
 - *Lakes:* blanked.
 
-17.5 % of land pixels pass: 54 % fail visibility and 54 % fail the building distance,
-with much overlap.
+8.6 % of land pixels pass. 54 % fail visibility, 54 % fail the building distance and 42 %
+fail the forest test, with much overlap. The forest mask alone removed 9 % of land that
+passed the other two tests, i.e. about half of the previously shown pixels. What remains
+is mostly open pasture, ridgelines and scattered single 100 m pixels.
 
 **What the local sources change.** Within the shown pixels, very little:
 
@@ -160,8 +165,7 @@ with much overlap.
 | No fill | +0.001 / +0.005 / +0.045 | 0.9997 |
 | Fill × 2 | −0.022 / −0.002 / 0.000 | 0.9999 |
 
-Sources within 1.5 km give a median 8 % (98th percentile 31 %) of the artificial zenith
-light at shown pixels. Requiring 200 m from buildings already removes the places where
+Sources within 1.5 km give a median 10 % of the artificial zenith light at shown pixels. Requiring 200 m from buildings already removes the places where
 hectare-scale light dominates, so at a valid site the sky glow is still set by towns
 kilometres away. What this model does **not** include is direct glare: a lamp or a lit
 window in direct view at a few hundred metres ruins dark adaptation without adding much
@@ -169,7 +173,8 @@ sky glow. That needs a line-of-sight count of nearby lights, not a sky-brightnes
 
 Data in `outputs/allsky30_fields_lv95.tif` (not in git; regenerate with
 `python -m darksky allsky`): `allsky30_mag` (unmasked), `zenith_mag`, `local_share`,
-`visible_fraction_below10`, `building_dist_m`, `shown`, `allsky30_minus_previous_layer`.
+`visible_fraction_below10`, `building_dist_m`, `tree_fraction`, `shown`,
+`allsky30_minus_previous_layer`.
 Summaries: `outputs/allsky30_summary.json`, `allsky30_sensitivity.json`,
 `calibration_allsky.json`, `sources_*.json`.
 
