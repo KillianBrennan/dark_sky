@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Capabilities xmlns="http://www.opengis.net/wmts/1.0" xmlns:ows="http://www.opengis.net/ows/1.1"
+  xmlns:xlink="http://www.w3.org/1999/xlink" version="1.0.0">
+  <ows:ServiceIdentification>
+    <ows:Title>Dark sky layers around Bern</ows:Title>
+    <ows:ServiceType>OGC WMTS</ows:ServiceType><ows:ServiceTypeVersion>1.0.0</ows:ServiceTypeVersion>
+  </ows:ServiceIdentification>
+  <ows:ServiceProvider><ows:ProviderName>dark_sky (GitHub)</ows:ProviderName>
+    <ows:ProviderSite xlink:href="https://github.com/KillianBrennan/dark_sky"/></ows:ServiceProvider>
+  <Contents>
+    <Layer>
+      <ows:Title>Dark sky: sky above 30°, candidate sites</ows:Title>
+      <ows:Abstract>Modelled mean V-band sky brightness over the sky above 30° elevation (mag/arcsec²), including local light sources and direct glare from lamps in view. Shown only where terrain stays below 10° over at least 75 % of the horizon, at least 200 m from any building, less than 50 % forest, and artificial light at most 2× the natural sky. Darker blue = darker sky. Model output (VIIRS 2025, calibrated to the Lorenz 2025 atlas), not a measurement. github.com/KillianBrennan/dark_sky</ows:Abstract>
+      <ows:WGS84BoundingBox><ows:LowerCorner>6.52151 46.31765</ows:LowerCorner><ows:UpperCorner>8.38231 47.58070</ows:UpperCorner></ows:WGS84BoundingBox>
+      <ows:Identifier>darksky_allsky30</ows:Identifier>
+      <Style isDefault="true"><ows:Identifier>default</ows:Identifier>
+        <LegendURL format="image/png" xlink:href="https://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/legend_3_allsky30.png"/></Style>
+      <Format>image/png</Format>
+      <TileMatrixSetLink><TileMatrixSet>lv95_darksky</TileMatrixSet></TileMatrixSetLink>
+      <ResourceURL format="image/png" resourceType="tile" template="https://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/wmts/darksky_allsky30/{TileMatrix}/{TileRow}/{TileCol}.png"/>
+    </Layer>
+    <Layer>
+      <ows:Title>Dark sky: sky above 30°, everywhere</ows:Title>
+      <ows:Abstract>Modelled mean V-band sky brightness over the sky above 30° elevation (mag/arcsec²), including local light sources and direct glare, for every pixel (no site masks). The lightest class is brighter than the candidate-site threshold (artificial &gt; 2× natural). Darker blue = darker sky. Model output, not a measurement. github.com/KillianBrennan/dark_sky</ows:Abstract>
+      <ows:WGS84BoundingBox><ows:LowerCorner>6.52151 46.31765</ows:LowerCorner><ows:UpperCorner>8.38231 47.58070</ows:UpperCorner></ows:WGS84BoundingBox>
+      <ows:Identifier>darksky_allsky30_unmasked</ows:Identifier>
+      <Style isDefault="true"><ows:Identifier>default</ows:Identifier>
+        <LegendURL format="image/png" xlink:href="https://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/legend_3b_allsky30_unmasked.png"/></Style>
+      <Format>image/png</Format>
+      <TileMatrixSetLink><TileMatrixSet>lv95_darksky</TileMatrixSet></TileMatrixSetLink>
+      <ResourceURL format="image/png" resourceType="tile" template="https://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/wmts/darksky_allsky30_unmasked/{TileMatrix}/{TileRow}/{TileCol}.png"/>
+    </Layer>
+    <TileMatrixSet>
+      <ows:Identifier>lv95_darksky</ows:Identifier>
+      <ows:SupportedCRS>urn:ogc:def:crs:EPSG::2056</ows:SupportedCRS>
+      <TileMatrix><ows:Identifier>0</ows:Identifier><ScaleDenominator>2857142.857143</ScaleDenominator>
+        <TopLeftCorner>2531000.0 1270000.0</TopLeftCorner><TileWidth>256</TileWidth><TileHeight>256</TileHeight>
+        <MatrixWidth>1</MatrixWidth><MatrixHeight>1</MatrixHeight></TileMatrix>
+      <TileMatrix><ows:Identifier>1</ows:Identifier><ScaleDenominator>1428571.428571</ScaleDenominator>
+        <TopLeftCorner>2531000.0 1270000.0</TopLeftCorner><TileWidth>256</TileWidth><TileHeight>256</TileHeight>
+        <MatrixWidth>2</MatrixWidth><MatrixHeight>2</MatrixHeight></TileMatrix>
+      <TileMatrix><ows:Identifier>2</ows:Identifier><ScaleDenominator>714285.714286</ScaleDenominator>
+        <TopLeftCorner>2531000.0 1270000.0</TopLeftCorner><TileWidth>256</TileWidth><TileHeight>256</TileHeight>
+        <MatrixWidth>3</MatrixWidth><MatrixHeight>3</MatrixHeight></TileMatrix>
+      <TileMatrix><ows:Identifier>3</ows:Identifier><ScaleDenominator>357142.857143</ScaleDenominator>
+        <TopLeftCorner>2531000.0 1270000.0</TopLeftCorner><TileWidth>256</TileWidth><TileHeight>256</TileHeight>
+        <MatrixWidth>6</MatrixWidth><MatrixHeight>6</MatrixHeight></TileMatrix>
+      <TileMatrix><ows:Identifier>4</ows:Identifier><ScaleDenominator>178571.428571</ScaleDenominator>
+        <TopLeftCorner>2531000.0 1270000.0</TopLeftCorner><TileWidth>256</TileWidth><TileHeight>256</TileHeight>
+        <MatrixWidth>11</MatrixWidth><MatrixHeight>11</MatrixHeight></TileMatrix>
+      <TileMatrix><ows:Identifier>5</ows:Identifier><ScaleDenominator>89285.714286</ScaleDenominator>
+        <TopLeftCorner>2531000.0 1270000.0</TopLeftCorner><TileWidth>256</TileWidth><TileHeight>256</TileHeight>
+        <MatrixWidth>22</MatrixWidth><MatrixHeight>22</MatrixHeight></TileMatrix>
+    </TileMatrixSet>
+  </Contents>
+</Capabilities>
