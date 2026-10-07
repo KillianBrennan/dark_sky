@@ -80,6 +80,16 @@ uncertainty, so treat them as a shortlist for ground truth, not a ranking.
 
 ## Shareable map links
 
+**[Sky above 30°, candidate sites + everywhere, with legends](https://map.geo.admin.ch/#/map?lang=en&center=2601000,1200000&z=2&bgLayer=ch.swisstopo.pixelkarte-grau&layers=WMTS%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/wmts/WMTSCapabilities.xml%7Cdarksky_allsky30_unmasked,f,0.65;WMTS%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/wmts/WMTSCapabilities.xml%7Cdarksky_allsky30,,0.8;KML%7Chttps://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/isochrones_bern.kml)** (recommended).
+These two all-sky layers are served as a static WMTS (`outputs/wmts/`), so map.geo.admin.ch
+shows their title, description and colour legend under the layer's ⓘ button in "Maps
+displayed", like native layers. The candidate-site layer is on; the unmasked one is
+loaded but hidden. To add them by hand: Advanced tools → Import → Online, paste
+`https://raw.githubusercontent.com/KillianBrennan/dark_sky/main/outputs/wmts/WMTSCapabilities.xml`.
+
+The COG links below load the same data as plain files; COG layers cannot show a legend
+in the viewer.
+
 Each link opens map.geo.admin.ch with the layer streamed from this repository (65 % opacity)
 and the drive-time contours on top. Toggle or fade layers in the "Maps displayed" panel.
 

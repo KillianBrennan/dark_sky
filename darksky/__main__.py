@@ -7,12 +7,13 @@ Steps (default: all, in order):
   calibrate  fit scale + AOD against the Lorenz atlas
   model      light-dome model (central + sensitivity runs)
   layers     fields GeoTIFF, RGBA COG layers, legends, sensitivity summary
-  allsky     all-sky (>30 deg) layer with local sources + visibility/building masks
+  allsky     all-sky (>30 deg) layer with local sources, glare and site masks
              (overwrites layer_3 from `layers`; downloads BFS grids and OSM extracts)
+  wmts       static WMTS (tiles + capabilities with legends) for the all-sky layers
 """
 import sys
 
-STEPS = ["fetch", "viirs", "terrain", "calibrate", "model", "layers", "allsky"]
+STEPS = ["fetch", "viirs", "terrain", "calibrate", "model", "layers", "allsky", "wmts"]
 
 
 def main(steps):
@@ -46,6 +47,12 @@ def main(steps):
             from . import run_allsky
             run_allsky.run(recalibrate=True)
             run_allsky.sensitivity()
+            run_allsky.glare_term()
+            run_allsky.finalize()
+            run_allsky.glare_sensitivity()
+        elif s == "wmts":
+            from . import wmts
+            wmts.build()
 
 
 if __name__ == "__main__":
