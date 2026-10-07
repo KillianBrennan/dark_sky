@@ -5,20 +5,39 @@
   "fail_forest": 0.41527406088470176,
   "removed_by_forest_only": 0.0899079155427402,
   "allsky30_shown_quantiles": [
-    18.25,
-    19.46,
-    20.11,
-    20.35,
-    20.64,
+    17.06,
+    19.05,
+    19.9,
+    20.21,
+    20.54,
     21.17,
     21.28
   ],
   "change_vs_previous_layer_shown_quantiles": [
-    -0.202,
-    -0.147,
-    -0.134,
-    -0.121,
-    -0.088
+    -0.825,
+    -0.374,
+    -0.24,
+    -0.152,
+    -0.09
   ],
-  "local_share_zenith_shown_median": 0.10026613328139462
+  "local_share_zenith_shown_median": 0.10026613328139462,
+  "glare_veil_over_sky_shown_quantiles": [
+    0.003,
+    0.099,
+    0.411,
+    0.98
+  ],
+  "glare_dmag_shown_quantiles": [
+    -0.742,
+    -0.374,
+    -0.103
+  ],
+  "breaks": [
+    19.5,
+    19.95,
+    20.25,
+    20.55,
+    20.8,
+    21.1
+  ]
 }

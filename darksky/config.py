@@ -89,3 +89,9 @@ VIS_MAX_HORIZON_DEG = 10.0    # "good visibility": terrain below this ...
 VIS_MIN_FRACTION = 0.75       # ... over at least this fraction of the horizon (5-deg sector maxima)
 BUILDING_MIN_DIST_M = 200.0   # minimum distance to any OSM building outline
 MAX_TREE_FRACTION = 0.5       # hide pixels with at least this ESA WorldCover tree-cover share
+
+# ---- direct glare (veiling luminance) for the all-sky layer ----
+GLARE_RADIUS_M = 6000.0       # lamps farther than this are ignored for glare
+GLARE_LOS_D_KM = (0.15, 0.22, 0.33, 0.5, 0.75, 1.1, 1.6, 2.3, 3.2, 4.4, 6.0)  # line-of-sight table nodes
+CIE_AGE = 40.0                # observer age in the CIE 146 disability-glare formula
+CIE_PIGMENT = 0.5             # eye pigmentation factor p (0 = very dark, 0.5 = brown, 1 = light blue)

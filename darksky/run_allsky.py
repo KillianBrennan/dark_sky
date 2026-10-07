@@ -4,6 +4,7 @@
   .venv/bin/python -m darksky.run_allsky sens       # fill x0 / x2 sensitivity
   .venv/bin/python -m darksky.run_allsky finalize   # re-apply masks + re-colour, no model run
   .venv/bin/python -m darksky.run_allsky colour     # re-colour only
+  .venv/bin/python -m darksky.run_allsky glare      # glare term (+ sensitivity), then finalize
 """
 import json
 import sys
@@ -79,6 +80,32 @@ def model(tag, fill_factor, cal=None):
     return cal
 
 
+def glare_term(tag="central", F=C.GARSTANG_F, age=C.CIE_AGE, pig=C.CIE_PIGMENT, fill_factor=C.MISSED_FILL_FACTOR):
+    """Veiling luminance from lamps in direct view, averaged over the sky above 30 deg with
+    the same solid-angle weights as the sky brightness (natural-zenith units)."""
+    from .glare import los_table, veil
+    cal = json.loads((C.OUT / "calibration_allsky.json").read_text())
+    scale = 10 ** cal["log10_scale"] * C.LED_FACTOR["V"][0]
+    src, _ = build_sources(fill_factor)
+    H = A.hierarchy(src, load_dem())
+    g = np.load(C.INTERIM / "terrain_100m.npz")
+    los_f = C.INTERIM / "los_100m.npy"
+    if los_f.exists():
+        los = np.load(los_f)
+    else:
+        t = time.time()
+        los = los_table(g["x"], g["y"], g["z"])
+        np.save(los_f, los)
+        print(f"line-of-sight table: {time.time() - t:.0f}s", flush=True)
+    t = time.time()
+    V, E = veil(H, (g["x"], g["y"], g["z"]), los, scale, cal["aod"], F=F, age=age, pig=pig)
+    wh, _ = A.want_list()
+    veil30 = sum(w * V[:, wh == ih].mean(1) for ih, w in enumerate(A.BAND_W))
+    np.savez(C.INTERIM / f"glare_{tag}.npz", veil30=veil30.astype(np.float32), E=E, F=F, age=age, pig=pig)
+    print(f"[{tag}] glare: {time.time() - t:.0f}s", flush=True)
+    return veil30
+
+
 def building_distance(x, y):
     from .osm import buildings
     b = buildings()
@@ -88,7 +115,7 @@ def building_distance(x, y):
     return np.nanmin(np.where(np.isfinite(d), np.maximum(d - r, 0.0), np.inf), axis=1)
 
 
-def fields(tag="central"):
+def fields(tag="central", glare_tag=None):
     m = np.load(C.INTERIM / f"allsky_{tag}.npz")
     scale = 10 ** float(m["log10_scale"]) * C.LED_FACTOR["V"][0]
     g250 = np.load(C.INTERIM / "terrain_250m.npz")
@@ -104,7 +131,11 @@ def fields(tag="central"):
         sel = wh == ih
         band.append(natural_rel(h) + tot[:, sel].mean(1))
     mean30 = sum(w * b for w, b in zip(A.BAND_W, band))
-    f = {"allsky30_mag": C.NATURAL_ZENITH_MPSAS - 2.5 * np.log10(mean30),
+    gf = C.INTERIM / f"glare_{glare_tag or tag}.npz"
+    veil30 = np.load(gf)["veil30"].astype(np.float64) if gf.exists() else np.zeros_like(mean30)
+    f = {"allsky30_mag": C.NATURAL_ZENITH_MPSAS - 2.5 * np.log10(mean30 + veil30),
+         "allsky30_sky_only_mag": C.NATURAL_ZENITH_MPSAS - 2.5 * np.log10(mean30),
+         "glare_veil_ratio": veil30 / mean30,
          "zenith_mag": C.NATURAL_ZENITH_MPSAS - 2.5 * np.log10(band[3]),
          "local_share": (scale * loc[:, wh == 3][:, 0]) / tot[:, wh == 3][:, 0]}
     return f, g100, tr100
@@ -167,29 +198,56 @@ def finalize():
          "allsky30_shown_quantiles": np.nanquantile(shown, [0, .02, .25, .5, .75, .98, 1]).round(2).tolist(),
          "change_vs_previous_layer_shown_quantiles": np.nanquantile(np.where(keep, f["allsky30_minus_previous_layer"], np.nan),
                                                                 [.02, .25, .5, .75, .98]).round(3).tolist(),
-         "local_share_zenith_shown_median": float(np.nanmedian(np.where(keep, f["local_share"], np.nan)))}
+         "local_share_zenith_shown_median": float(np.nanmedian(np.where(keep, f["local_share"], np.nan))),
+         "glare_veil_over_sky_shown_quantiles": np.nanquantile(np.where(keep, f["glare_veil_ratio"], np.nan),
+                                                              [.1, .5, .9, .99]).round(3).tolist(),
+         "glare_dmag_shown_quantiles": np.nanquantile(np.where(keep, f["allsky30_mag"] - f["allsky30_sky_only_mag"], np.nan),
+                                                     [.01, .1, .5]).round(3).tolist(),
+         "breaks": breaks_from_unmasked(f["allsky30_mag"])}
     (C.OUT / "allsky30_summary.json").write_text(json.dumps(s, indent=2))
     print(json.dumps(s, indent=2))
 
 
-BREAKS = [19.75, 20.0, 20.25, 20.5, 20.75, 21.0]   # 7 classes of 0.25 mag
+def breaks_from_unmasked(mag, n=7, step=0.05):
+    """Equal-count class breaks over the unmasked field, rounded to `step` mag."""
+    q = np.nanquantile(mag, np.arange(1, n) / n)
+    return [round(float(np.round(v / step) * step), 2) for v in q]
 
 
 def colour_layer(shown=None, g=None, tr=None, sh=None):
-    """Stepped (7-class) RGBA COGs + legends from the fields file: the masked layer_3 and a
-    fully unmasked layer_3b (water included). `shown` etc. are accepted for the finalize() call."""
+    """Stepped 7-class RGBA COGs + legends from the fields file: masked layer_3 and fully
+    unmasked layer_3b. Breaks are equal-count quantiles of the *unmasked* field."""
     g = np.load(C.INTERIM / "terrain_100m.npz") if g is None else g
     tr, sh = rasterio.Affine(*g["transform"]), tuple(g["shape"])
     with rasterio.open(C.OUT / "allsky30_fields_lv95.tif") as s:
         dsc = list(s.descriptions)
         mag = s.read(dsc.index("allsky30_mag") + 1)[g["rows"], g["cols"]]
         ok = s.read(dsc.index("shown") + 1)[g["rows"], g["cols"]] > 0
-    title = "3  Mean sky brightness above 30°, V (mag/arcsec²), incl. local sources"
-    Ly.write_rgba("3_allsky30", np.where(ok, mag, np.nan), g, tr, sh, BREAKS[0], BREAKS[-1], breaks=BREAKS)
-    Ly.stepped_legend("3_allsky30", title, BREAKS,
+    br = breaks_from_unmasked(mag)
+    title = "3  Sky above 30°, V (mag/arcsec²), incl. local sources and glare"
+    Ly.write_rgba("3_allsky30", np.where(ok, mag, np.nan), g, tr, sh, br[0], br[-1], breaks=br)
+    Ly.stepped_legend("3_allsky30", title, br,
                       "Shown where terrain < 10° over ≥ 75 % of the horizon, ≥ 200 m from buildings, < 50 % forest.")
-    Ly.write_rgba("3b_allsky30_unmasked", mag, g, tr, sh, BREAKS[0], BREAKS[-1], breaks=BREAKS)
-    Ly.stepped_legend("3b_allsky30_unmasked", title, BREAKS, "No masks: every pixel of the square, lakes and rivers included.")
+    Ly.write_rgba("3b_allsky30_unmasked", mag, g, tr, sh, br[0], br[-1], breaks=br)
+    Ly.stepped_legend("3b_allsky30_unmasked", title, br, "No masks. Classes hold equal numbers of pixels over the whole square.")
+    return br
+
+
+def glare_sensitivity():
+    """Glare under other assumptions: horizontal emission F = 0.30, observer age 25 and 60."""
+    base, g, _ = fields("central")
+    with rasterio.open(C.OUT / "allsky30_fields_lv95.tif") as s:
+        shown = s.read(list(s.descriptions).index("shown") + 1)[g["rows"], g["cols"]] > 0
+    out = {}
+    rk = lambda a: np.argsort(np.argsort(a))
+    for tag, kw in (("glare_F030", dict(F=0.30)), ("glare_age25", dict(age=25.0)), ("glare_age60", dict(age=60.0))):
+        glare_term(tag, **kw)
+        f, *_ = fields("central", glare_tag=tag)
+        d = (f["allsky30_mag"] - base["allsky30_mag"])[shown]
+        out[tag] = {"delta_mag_quantiles_shown": np.quantile(d, [.02, .5, .98]).round(3).tolist(),
+                    "spearman_shown": float(np.corrcoef(rk(base["allsky30_mag"][shown]), rk(f["allsky30_mag"][shown]))[0, 1])}
+        print(tag, out[tag], flush=True)
+    (C.OUT / "allsky30_glare_sensitivity.json").write_text(json.dumps(out, indent=2))
 
 
 def sensitivity():
@@ -216,5 +274,9 @@ if __name__ == "__main__":
         colour_layer()
     elif sys.argv[1:] == ["finalize"]:
         finalize()
+    elif sys.argv[1:] == ["glare"]:
+        glare_term()
+        finalize()
+        glare_sensitivity()
     else:
         run(recalibrate="--recalibrate" in sys.argv)
