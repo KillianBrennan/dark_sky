@@ -163,6 +163,13 @@ def run(recalibrate=False):
     finalize()
 
 
+def brightness_threshold(ratio=C.MAX_ARTIFICIAL_RATIO):
+    """All-sky (>30 deg) magnitude at which artificial light (incl. glare) = ratio x natural."""
+    from .lightdome import natural_rel
+    nat = sum(w * natural_rel(h) for w, h in zip(A.BAND_W, A.HS))
+    return float(C.NATURAL_ZENITH_MPSAS - 2.5 * np.log10(nat * (1.0 + ratio)))
+
+
 def finalize():
     """Masks, fields file, layer and summary from the saved central model run."""
     f, g, tr = fields("central")
@@ -171,8 +178,9 @@ def finalize():
     bdist = building_distance(g["x"], g["y"])
     water = Ly._water_fraction(g["x"], g["y"]) > 0.5
     trees = tree_fraction(g)
+    thr = brightness_threshold()
     keep = ((vis >= C.VIS_MIN_FRACTION) & (bdist >= C.BUILDING_MIN_DIST_M) & (trees < C.MAX_TREE_FRACTION)
-            & ~water)
+            & (f["allsky30_mag"] >= thr) & ~water)
     f["visible_fraction_below10"] = vis
     f["building_dist_m"] = bdist
     f["tree_fraction"] = trees
@@ -193,6 +201,10 @@ def finalize():
          "fail_visibility": float(((vis < C.VIS_MIN_FRACTION) & ~water).sum() / (~water).sum()),
          "fail_buildings": float(((bdist < C.BUILDING_MIN_DIST_M) & ~water).sum() / (~water).sum()),
          "fail_forest": float(((trees >= C.MAX_TREE_FRACTION) & ~water).sum() / (~water).sum()),
+         "brightness_threshold_mag": thr,
+         "fail_brightness": float(((f["allsky30_mag"] < thr) & ~water).sum() / (~water).sum()),
+         "shown_km2_within_60min": float((keep & np.isfinite(g["drive_min"])).sum() / 100.0),
+         "shown_km2_within_45min": float((keep & (g["drive_min"] <= 45)).sum() / 100.0),
          "removed_by_forest_only": float(((trees >= C.MAX_TREE_FRACTION) & (vis >= C.VIS_MIN_FRACTION)
                                           & (bdist >= C.BUILDING_MIN_DIST_M) & ~water).sum() / (~water).sum()),
          "allsky30_shown_quantiles": np.nanquantile(shown, [0, .02, .25, .5, .75, .98, 1]).round(2).tolist(),
@@ -208,17 +220,23 @@ def finalize():
     print(json.dumps(s, indent=2))
 
 
-def breaks_from_unmasked(mag, n=7, step=0.01):
-    """Logarithmic (halving) class breaks over the unmasked field: from the brightest end the
-    classes hold 50 %, 25 %, 12.5 %, ... of the pixels and the darkest class the remainder,
-    so colour resolution is concentrated in the dark tail. Rounded to `step` mag."""
-    q = np.nanquantile(mag, 1.0 - 0.5 ** np.arange(1, n))
-    return [round(float(np.round(v / step) * step), 2) for v in q]
+def breaks_from_unmasked(mag, n=7, step=0.01, dmin=C.CLASS_MIN_WIDTH_MAG):
+    """Class breaks: the lightest class is everything brighter than the masked-layer
+    brightness threshold; the other n-1 classes are equal steps in magnitude (equal
+    luminance ratios) from that threshold to the darkest pixels (99.9th percentile of the
+    unmasked field). Steps are never narrower than `dmin` mag; if the range is too short
+    for that, the scale is anchored at the dark end and extends below the threshold."""
+    top = float(np.nanquantile(mag, 0.999))
+    thr = brightness_threshold()
+    width = max((top - thr) / (n - 1), dmin)
+    br = [top - (n - 1 - k) * width for k in range(n - 1)]
+    # floor, so the lowest break never sits above the masked-layer threshold
+    return [round(float(np.floor(b / step + 1e-9) * step), 2) for b in br]
 
 
 def colour_layer(shown=None, g=None, tr=None, sh=None):
     """Stepped 7-class RGBA COGs + legends from the fields file: masked layer_3 and fully
-    unmasked layer_3b. Breaks are halving quantiles of the *unmasked* field."""
+    unmasked layer_3b. Breaks: see breaks_from_unmasked (from the unmasked field)."""
     g = np.load(C.INTERIM / "terrain_100m.npz") if g is None else g
     tr, sh = rasterio.Affine(*g["transform"]), tuple(g["shape"])
     with rasterio.open(C.OUT / "allsky30_fields_lv95.tif") as s:
@@ -229,10 +247,11 @@ def colour_layer(shown=None, g=None, tr=None, sh=None):
     title = "3  Sky above 30°, V (mag/arcsec²), incl. local sources and glare"
     Ly.write_rgba("3_allsky30", np.where(ok, mag, np.nan), g, tr, sh, br[0], br[-1], breaks=br)
     Ly.stepped_legend("3_allsky30", title, br,
-                      "Shown where terrain < 10° over ≥ 75 % of the horizon, ≥ 200 m from buildings, < 50 % forest.")
+                      f"Shown: horizon < 10° on ≥ 75 %, ≥ 200 m to buildings, < 50 % forest, "
+                      f"artificial ≤ {C.MAX_ARTIFICIAL_RATIO:g}× natural.")
     Ly.write_rgba("3b_allsky30_unmasked", mag, g, tr, sh, br[0], br[-1], breaks=br)
     Ly.stepped_legend("3b_allsky30_unmasked", title, br,
-                      "No masks. Classes hold 50, 25, 12.5, 6.25, 3.1, 1.6, 1.6 % of the square (brightest to darkest).")
+                      f"No masks. Lightest class: artificial > {C.MAX_ARTIFICIAL_RATIO:g}× natural; then equal steps to the darkest sky.")
     return br
 
 

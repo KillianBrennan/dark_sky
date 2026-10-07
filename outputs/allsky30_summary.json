@@ -1,43 +1,47 @@
 {
-  "shown_fraction_of_land": 0.08556865142113027,
+  "shown_fraction_of_land": 0.022515380629044474,
   "fail_visibility": 0.5371954768327198,
   "fail_buildings": 0.538664576052726,
   "fail_forest": 0.41527406088470176,
+  "brightness_threshold_mag": 20.52687385711439,
+  "fail_brightness": 0.5575327212086584,
+  "shown_km2_within_60min": 12.28,
+  "shown_km2_within_45min": 2.27,
   "removed_by_forest_only": 0.0899079155427402,
   "allsky30_shown_quantiles": [
-    17.06,
-    19.05,
-    19.9,
-    20.21,
-    20.54,
-    21.17,
+    20.53,
+    20.53,
+    20.65,
+    20.8,
+    20.94,
+    21.25,
     21.28
   ],
   "change_vs_previous_layer_shown_quantiles": [
-    -0.825,
-    -0.374,
-    -0.24,
-    -0.152,
-    -0.09
+    -0.353,
+    -0.168,
+    -0.128,
+    -0.107,
+    -0.085
   ],
-  "local_share_zenith_shown_median": 0.10026613328139462,
+  "local_share_zenith_shown_median": 0.026783450608160668,
   "glare_veil_over_sky_shown_quantiles": [
-    0.003,
-    0.099,
-    0.411,
-    0.98
+    0.0,
+    0.011,
+    0.098,
+    0.272
   ],
   "glare_dmag_shown_quantiles": [
-    -0.742,
-    -0.374,
-    -0.103
+    -0.261,
+    -0.101,
+    -0.012
   ],
   "breaks": [
-    19.5,
-    19.95,
-    20.25,
-    20.55,
-    20.8,
-    21.1
+    20.52,
+    20.65,
+    20.77,
+    20.9,
+    21.02,
+    21.15
   ]
 }

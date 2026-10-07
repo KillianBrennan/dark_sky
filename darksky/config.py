@@ -89,6 +89,10 @@ VIS_MAX_HORIZON_DEG = 10.0    # "good visibility": terrain below this ...
 VIS_MIN_FRACTION = 0.75       # ... over at least this fraction of the horizon (5-deg sector maxima)
 BUILDING_MIN_DIST_M = 200.0   # minimum distance to any OSM building outline
 MAX_TREE_FRACTION = 0.5       # hide pixels with at least this ESA WorldCover tree-cover share
+MAX_ARTIFICIAL_RATIO = 2.0    # masked layer: artificial sky glow + glare at most this x the natural sky
+                              # (2 -> all-sky >= 20.53; 1 -> >= 20.97, only the very best patches)
+CLASS_MIN_WIDTH_MAG = 0.10    # narrowest colour class: ~10 % in luminance, 2x the model's relative
+                              # precision and the +/-0.1 mag precision of an SQM check
 
 # ---- direct glare (veiling luminance) for the all-sky layer ----
 GLARE_RADIUS_M = 6000.0       # lamps farther than this are ignored for glare
